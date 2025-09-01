@@ -10,23 +10,24 @@ using TMPro;
 public class SingleImageTracker : MonoBehaviour
 {
     [Header("AR System References")]
-    public ARTrackedImageManager trackedImageManager;
-    public ARAnchorManager anchorManager;
+    [SerializeField] private ARTrackedImageManager trackedImageManager;
+    [SerializeField] private ARAnchorManager anchorManager;
+    [SerializeField] private PlaneVisualizerController planeVisualizerController;
 
     [Header("Image Target Setup")]
-    public string imageUrl;
-    public float physicalImageSize = 0.1f;
+    [SerializeField] private string imageUrl;
+    [SerializeField] private float physicalImageSize = 0.1f;
 
     [Header("Spawning Setup")]
-    public GameObject upPrefab;
-    public GameObject rightPrefab;
-    public GameObject forwardPrefab;
-    public float spawnDistance = 0.5f;
+    [SerializeField] private GameObject upPrefab;
+    [SerializeField] private GameObject rightPrefab;
+    [SerializeField] private GameObject forwardPrefab;
+    [SerializeField] private float spawnDistance = 0.5f;
 
     [Header("UI Elements")]
-    public Button trackButton;
-    public Button resetButton;
-    public TextMeshProUGUI statusText;
+    [SerializeField] private Button trackButton;
+    [SerializeField] private Button resetButton;
+    [SerializeField] private TextMeshProUGUI statusText;
 
     // State Variables
     private bool hasSpawned = false;
