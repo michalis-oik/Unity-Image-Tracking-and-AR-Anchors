@@ -1264,6 +1264,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trackedImageManager: {fileID: 1993576213}
   anchorManager: {fileID: 1993576214}
+  planeVisualizerController: {fileID: 1663067450}
+  arSession: {fileID: 310565683}
   imageUrl: https://i.imgur.com/wpJuarJ.png
   physicalImageSize: 0.21
   upPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,

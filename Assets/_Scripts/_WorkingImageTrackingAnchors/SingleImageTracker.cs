@@ -13,6 +13,7 @@ public class SingleImageTracker : MonoBehaviour
     [SerializeField] private ARTrackedImageManager trackedImageManager;
     [SerializeField] private ARAnchorManager anchorManager;
     [SerializeField] private PlaneVisualizerController planeVisualizerController;
+    [SerializeField] private ARSession arSession;
 
     [Header("Image Target Setup")]
     [SerializeField] private string imageUrl;
@@ -71,10 +72,11 @@ public class SingleImageTracker : MonoBehaviour
         }
     }
 
+    #region Image Tracking
     public void StartImageTracking()
     {
         if (isDownloading) return;
-        
+
         if (downloadedTexture == null)
         {
             // First time - need to download
@@ -169,21 +171,26 @@ public class SingleImageTracker : MonoBehaviour
         
         planeVisualizerController.ShowPlanes();
     }
+    #endregion
+
+    #region Image Tracking Event Handler
 
     private void OnTrackablesChanged(ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs)
     {
         if (!libraryInitialized) return;
-        
+
         foreach (ARTrackedImage trackedImage in eventArgs.added)
         {
             ProcessTrackedImage(trackedImage);
         }
-        
+
         foreach (ARTrackedImage trackedImage in eventArgs.updated)
         {
             ProcessTrackedImage(trackedImage);
         }
     }
+
+    #endregion
 
     #region ProcessTrackedImage
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
@@ -253,6 +260,7 @@ public class SingleImageTracker : MonoBehaviour
     }
     #endregion
 
+    #region SpawnObjects
     private void SpawnObjects(Transform anchor)
     {
         // Clear any previously spawned objects
@@ -294,25 +302,27 @@ public class SingleImageTracker : MonoBehaviour
 
         planeVisualizerController.HidePlanes();
     }
+    #endregion
 
+    #region Reset
     public void ResetExperience()
     {
         UpdateStatus("Resetting experience...");
-        
+
         // Destroy the anchor and all spawned objects
         if (spawnedAnchor != null)
         {
             Destroy(spawnedAnchor.gameObject);
             spawnedAnchor = null;
         }
-        
+
         // Clear the list of spawned objects
         foreach (GameObject obj in spawnedObjects)
         {
             if (obj != null) Destroy(obj);
         }
         spawnedObjects.Clear();
-        
+
         hasSpawned = false;
         libraryInitialized = false;
 
@@ -326,14 +336,15 @@ public class SingleImageTracker : MonoBehaviour
         {
             resetButton.gameObject.SetActive(false);
         }
-        
+
         if (trackButton != null)
         {
             trackButton.interactable = true;
         }
-        
+
         UpdateStatus("Press 'Track Image' to begin");
     }
+    #endregion
 
     private void UpdateStatus(string message)
     {
