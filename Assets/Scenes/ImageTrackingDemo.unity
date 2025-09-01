@@ -1144,9 +1144,6 @@ GameObject:
   - component: {fileID: 1663067442}
   - component: {fileID: 1663067441}
   - component: {fileID: 1663067445}
-  - component: {fileID: 1663067446}
-  - component: {fileID: 1663067447}
-  - component: {fileID: 1663067448}
   - component: {fileID: 1663067449}
   m_Layer: 5
   m_Name: UI
@@ -1252,65 +1249,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trackImage1Button: {fileID: 1992825857}
   trackImage2Button: {fileID: 0}
---- !u!114 &1663067446
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663067439}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae16068edb9888b48882f0d24deb239d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  trackedImageManager: {fileID: 1993576213}
-  placeOnceSpawner: {fileID: 1663067448}
-  library1Button: {fileID: 1992825857}
-  library2Button: {fileID: 0}
-  imageUrl1: https://i.imgur.com/spdjHF0.jpeg
-  imageUrl2: https://i.imgur.com/wpJuarJ.png
-  physicalSize: 0.21
---- !u!114 &1663067447
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663067439}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 17cc998c286ed824d98d2768c9d3dc1d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  upPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
-    type: 3}
-  rightPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
-    type: 3}
-  forwardPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
-    type: 3}
-  spawnDistance: 0.5
-  m_TrackedImageManager: {fileID: 1993576213}
---- !u!114 &1663067448
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663067439}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cb4faa613df13bf47a1d06b73dadbecc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  upPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
-    type: 3}
-  rightPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
-    type: 3}
-  forwardPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
-    type: 3}
-  spawnDistance: 0.5
-  m_TrackedImageManager: {fileID: 1993576213}
 --- !u!114 &1663067449
 MonoBehaviour:
   m_ObjectHideFlags: 0
