@@ -239,7 +239,7 @@ public class SingleImageTracker : MonoBehaviour
                 UpdateStatus("Objects placed! Press Reset to scan again.");
                 if (resetButton != null) resetButton.gameObject.SetActive(true);
                 if (trackButton != null) trackButton.interactable = false;
-                if (trackedImageManager != null) trackedImageManager.enabled = false;
+                if (trackedImageManager != null) trackedImageManager.enabled = false; // close the tracking manager to stop scanning
             }
             else
             {
