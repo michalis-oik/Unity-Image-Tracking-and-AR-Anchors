@@ -126,7 +126,7 @@ public class SingleImageTracker : MonoBehaviour
 
         // Ensure the tracked image manager is disabled while we modify the library
         trackedImageManager.enabled = false;
-        
+
         // Create a new runtime library if needed
         if (runtimeLibrary == null)
         {
@@ -138,7 +138,7 @@ public class SingleImageTracker : MonoBehaviour
                 return;
             }
         }
-        
+
         // Check if the image is already in the library
         bool imageExists = false;
         if (runtimeLibrary.count > 0)
@@ -146,26 +146,28 @@ public class SingleImageTracker : MonoBehaviour
             // For simplicity, we'll assume the first image is our target
             imageExists = true;
         }
-        
+
         if (!imageExists && downloadedTexture != null)
         {
             // Add the image to the library
             var jobState = runtimeLibrary.ScheduleAddImageWithValidationJob(
                 downloadedTexture, downloadedTexture.name, physicalImageSize);
-            
+
             // Wait for the job to complete
             // Note: In a real implementation, you should properly handle this async operation
         }
-        
+
         // Set the reference library
         trackedImageManager.referenceLibrary = runtimeLibrary;
-        
+
         // Enable the manager
         trackedImageManager.enabled = true;
         libraryInitialized = true;
-        
+
         UpdateStatus("Ready! Please scan the image.");
         if (trackButton != null) trackButton.interactable = true;
+        
+        planeVisualizerController.ShowPlanes();
     }
 
     private void OnTrackablesChanged(ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs)
@@ -289,6 +291,8 @@ public class SingleImageTracker : MonoBehaviour
         }
 
         Debug.Log($"Spawned objects at position: {anchor.position}");
+
+        planeVisualizerController.HidePlanes();
     }
 
     public void ResetExperience()
