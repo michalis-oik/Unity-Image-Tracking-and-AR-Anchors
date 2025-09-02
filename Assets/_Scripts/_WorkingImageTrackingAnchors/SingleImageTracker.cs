@@ -30,6 +30,7 @@ public class SingleImageTracker : MonoBehaviour
     [SerializeField] private Button trackButton;
     [SerializeField] private Button resetButton;
     [SerializeField] private TextMeshProUGUI statusText;
+    [SerializeField] private TextMeshProUGUI distanceText;
 
     // State Variables
     private bool hasSpawned = false;
@@ -54,6 +55,11 @@ public class SingleImageTracker : MonoBehaviour
             resetButton.onClick.AddListener(ResetExperience);
         }
 
+        if (distanceText != null)
+        {
+            distanceText.gameObject.SetActive(false);
+        }
+
         UpdateStatus("Press 'Track Image' to begin");
     }
 
@@ -61,7 +67,7 @@ public class SingleImageTracker : MonoBehaviour
     {
         if (trackedImageManager != null)
         {
-            trackedImageManager.trackablesChanged.AddListener(OnTrackablesChanged); // += OnTrackablesChanged;
+            trackedImageManager.trackablesChanged.AddListener(OnTrackablesChanged);
         }
     }
 
@@ -69,7 +75,7 @@ public class SingleImageTracker : MonoBehaviour
     {
         if (trackedImageManager != null)
         {
-            trackedImageManager.trackablesChanged.RemoveListener(OnTrackablesChanged); // -= OnTrackablesChanged;
+            trackedImageManager.trackablesChanged.RemoveListener(OnTrackablesChanged);
         }
     }
 
@@ -97,7 +103,6 @@ public class SingleImageTracker : MonoBehaviour
         
         UpdateStatus("Downloading image...");
         
-        // Download the image
         UnityWebRequest request = UnityWebRequestTexture.GetTexture(imageUrl);
         yield return request.SendWebRequest();
         
@@ -114,7 +119,6 @@ public class SingleImageTracker : MonoBehaviour
         
         UpdateStatus("Image downloaded. Setting up tracking...");
         
-        // Setup the image tracking
         SetupImageTracking();
         isDownloading = false;
     }
@@ -127,10 +131,8 @@ public class SingleImageTracker : MonoBehaviour
             return;
         }
 
-        // Ensure the tracked image manager is disabled while we modify the library
         trackedImageManager.enabled = false;
 
-        // Create a new runtime library if needed
         if (runtimeLibrary == null)
         {
             runtimeLibrary = trackedImageManager.CreateRuntimeLibrary() as MutableRuntimeReferenceImageLibrary;
@@ -142,28 +144,19 @@ public class SingleImageTracker : MonoBehaviour
             }
         }
 
-        // Check if the image is already in the library
         bool imageExists = false;
         if (runtimeLibrary.count > 0)
         {
-            // For simplicity, we'll assume the first image is our target
             imageExists = true;
         }
 
         if (!imageExists && downloadedTexture != null)
         {
-            // Add the image to the library
             var jobState = runtimeLibrary.ScheduleAddImageWithValidationJob(
                 downloadedTexture, downloadedTexture.name, physicalImageSize);
-
-            // Wait for the job to complete
-            // Note: In a real implementation, you should properly handle this async operation
         }
 
-        // Set the reference library
         trackedImageManager.referenceLibrary = runtimeLibrary;
-
-        // Enable the manager
         trackedImageManager.enabled = true;
         libraryInitialized = true;
 
@@ -180,18 +173,55 @@ public class SingleImageTracker : MonoBehaviour
     {
         if (!libraryInitialized) return;
 
+        // Process added and updated images
         foreach (ARTrackedImage trackedImage in eventArgs.added)
         {
+            UpdateDistanceText(trackedImage); // Update distance on add
             ProcessTrackedImage(trackedImage);
         }
 
         foreach (ARTrackedImage trackedImage in eventArgs.updated)
         {
+            UpdateDistanceText(trackedImage); // Update distance on update
             ProcessTrackedImage(trackedImage);
+        }
+
+        foreach (var trackedImage in eventArgs.removed)
+        {
+            if (distanceText != null && downloadedTexture != null)
+            {
+                distanceText.gameObject.SetActive(false);
+            }
         }
     }
 
     #endregion
+    
+    // <<< NEW: Method to calculate and display the distance
+    private void UpdateDistanceText(ARTrackedImage trackedImage)
+    {
+        // Don't update distance if objects are already spawned, or UI isn't set
+        if (hasSpawned || distanceText == null || downloadedTexture == null) return;
+        
+        // Only show distance for the correct image
+        if (trackedImage.referenceImage.name != downloadedTexture.name) return;
+
+        if (trackedImage.trackingState == TrackingState.Tracking || trackedImage.trackingState == TrackingState.Limited)
+        {
+            if (!distanceText.gameObject.activeSelf)
+            {
+                distanceText.gameObject.SetActive(true);
+            }
+            // Calculate distance between the main camera and the tracked image
+            float distance = Vector3.Distance(Camera.main.transform.position, trackedImage.transform.position);
+            distanceText.text = $"Distance: {distance:F2} m";
+        }
+        else
+        {
+            // If tracking is lost, hide the text
+            distanceText.gameObject.SetActive(false);
+        }
+    }
 
     #region ProcessTrackedImage
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
@@ -202,60 +232,41 @@ public class SingleImageTracker : MonoBehaviour
 
         if (trackedImage.trackingState == TrackingState.Tracking)
         {
-            // Create a new anchor at the image's position
-            // if (spawnedAnchor != null)
-            // {
-            //     Destroy(spawnedAnchor.gameObject);
-            //     spawnedAnchor = null;
-            // }
-
-            // // Create a new GameObject for the anchor at the tracked image's position
-            // GameObject anchorObject = new GameObject("ImageAnchor");
-
-            // // Set the position and rotation to match the tracked image
-            // anchorObject.transform.position = trackedImage.transform.position;
-            // anchorObject.transform.rotation = trackedImage.transform.rotation;
-
-            // spawnedAnchor = anchorObject.AddComponent<ARAnchor>();
-
             if (spawnedAnchor != null)
             {
                 Destroy(spawnedAnchor.gameObject);
             }
 
-            // Define the pose from the tracked image
             Pose anchorPose = new Pose(trackedImage.transform.position, trackedImage.transform.rotation);
-
-            // Ask the manager to create the anchor for us. It handles creating the GameObject.
             Result<ARAnchor> result = await anchorManager.TryAddAnchorAsync(anchorPose);
 
-            // The method returns a Result object. Check its status first.
             if (result.status.IsSuccess())
             {
-                // If successful, get the anchor from the result's 'value' property
                 spawnedAnchor = result.value;
             }
             else
             {
-                // If it failed, set the anchor to null
                 spawnedAnchor = null;
             }
 
             if (spawnedAnchor != null)
             {
-                // Spawn objects relative to the anchor
                 SpawnObjects(spawnedAnchor.transform);
                 hasSpawned = true;
+
+                // if (distanceText != null)
+                // {
+                //     distanceText.gameObject.SetActive(false);
+                // }
 
                 UpdateStatus("Objects placed! Press Reset to scan again.");
                 if (resetButton != null) resetButton.gameObject.SetActive(true);
                 if (trackButton != null) trackButton.interactable = false;
-                if (trackedImageManager != null) trackedImageManager.enabled = false; // close the tracking manager to stop scanning
+                if (trackedImageManager != null) trackedImageManager.enabled = false;
             }
             else
             {
                 UpdateStatus("Failed to create an anchor. Please try again.");
-                //Destroy(anchorObject);
             }
         }
     }
@@ -264,43 +275,35 @@ public class SingleImageTracker : MonoBehaviour
     #region SpawnObjects
     private void SpawnObjects(Transform anchor)
     {
-        // Clear any previously spawned objects
         foreach (GameObject obj in spawnedObjects)
         {
             if (obj != null) Destroy(obj);
         }
         spawnedObjects.Clear();
 
-        // Calculate positions relative to the anchor
-        // Use local space offsets instead of world space to ensure proper placement
         Vector3 upPos = anchor.position + anchor.up * spawnDistance;
         Vector3 downPos = anchor.position - anchor.up * spawnDistance;
         Vector3 rightPos = anchor.position + anchor.right * spawnDistance;
         Vector3 forwardPos = anchor.position + anchor.forward * spawnDistance;
 
-
-        // Instantiate objects
         if (upPrefab != null)
         {
             GameObject upObj = Instantiate(upPrefab, downPos, anchor.rotation);
             upObj.transform.SetParent(anchor);
             spawnedObjects.Add(upObj);
         }
-
         if (downPrefab != null)
         {
-            GameObject upObj = Instantiate(downPrefab, upPos, anchor.rotation);
-            upObj.transform.SetParent(anchor);
-            spawnedObjects.Add(upObj);
+            GameObject downObj = Instantiate(downPrefab, upPos, anchor.rotation);
+            downObj.transform.SetParent(anchor);
+            spawnedObjects.Add(downObj);
         }
-
         if (rightPrefab != null)
         {
             GameObject rightObj = Instantiate(rightPrefab, rightPos, anchor.rotation);
             rightObj.transform.SetParent(anchor);
             spawnedObjects.Add(rightObj);
         }
-
         if (forwardPrefab != null)
         {
             GameObject forwardObj = Instantiate(forwardPrefab, forwardPos, anchor.rotation);
@@ -309,7 +312,6 @@ public class SingleImageTracker : MonoBehaviour
         }
 
         Debug.Log($"Spawned objects at position: {anchor.position}");
-
         planeVisualizerController.HidePlanes();
     }
     #endregion
@@ -319,14 +321,12 @@ public class SingleImageTracker : MonoBehaviour
     {
         UpdateStatus("Resetting experience...");
 
-        // Destroy the anchor and all spawned objects
         if (spawnedAnchor != null)
         {
             Destroy(spawnedAnchor.gameObject);
             spawnedAnchor = null;
         }
 
-        // Clear the list of spawned objects
         foreach (GameObject obj in spawnedObjects)
         {
             if (obj != null) Destroy(obj);
@@ -336,10 +336,14 @@ public class SingleImageTracker : MonoBehaviour
         hasSpawned = false;
         libraryInitialized = false;
 
-        // Disable the tracked image manager
         if (trackedImageManager != null)
         {
             trackedImageManager.enabled = false;
+        }
+
+        if (distanceText != null)
+        {
+            distanceText.gameObject.SetActive(false);
         }
 
         if (resetButton != null)
