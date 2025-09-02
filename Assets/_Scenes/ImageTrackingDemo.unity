@@ -1164,6 +1164,7 @@ GameObject:
   - component: {fileID: 1663067445}
   - component: {fileID: 1663067449}
   - component: {fileID: 1663067450}
+  - component: {fileID: 1663067451}
   m_Layer: 5
   m_Name: UI
   m_TagString: Untagged
@@ -1275,7 +1276,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1663067439}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a22e7dc669b8c974dbd4f265a14886e8, type: 3}
   m_Name: 
@@ -1311,6 +1312,35 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   planeManager: {fileID: 1993576209}
+--- !u!114 &1663067451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663067439}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed1081c18aa72b74eaedf07c110b1b06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trackedImageManager: {fileID: 1993576213}
+  planeVisualizerController: {fileID: 1663067450}
+  arSession: {fileID: 310565683}
+  imageUrl: https://i.imgur.com/wpJuarJ.png
+  physicalImageSize: 0.21
+  downPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
+    type: 3}
+  upPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
+    type: 3}
+  rightPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
+    type: 3}
+  forwardPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,
+    type: 3}
+  spawnDistance: 0.5
+  trackButton: {fileID: 1992825857}
+  resetButton: {fileID: 1858539585}
+  statusText: {fileID: 780871662}
 --- !u!1 &1858539582
 GameObject:
   m_ObjectHideFlags: 0
@@ -1705,7 +1735,8 @@ MonoBehaviour:
       m_Calls: []
   m_SerializedLibrary: {fileID: 0}
   m_MaxNumberOfMovingImages: 0
-  m_TrackedImagePrefab: {fileID: 0}
+  m_TrackedImagePrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
+    type: 3}
 --- !u!114 &1993576214
 MonoBehaviour:
   m_ObjectHideFlags: 0
