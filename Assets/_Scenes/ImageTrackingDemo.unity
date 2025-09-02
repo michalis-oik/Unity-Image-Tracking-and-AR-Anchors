@@ -723,6 +723,7 @@ GameObject:
   - component: {fileID: 957377875}
   - component: {fileID: 957377874}
   - component: {fileID: 957377879}
+  - component: {fileID: 957377880}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -990,6 +991,23 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
+--- !u!114 &957377880
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 957377872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b15f82cc229284894964d2d30806969d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HumanSegmentationStencilMode: 0
+  m_HumanSegmentationDepthMode: 0
+  m_EnvironmentDepthMode: 3
+  m_EnvironmentDepthTemporalSmoothing: 1
+  m_OcclusionPreferenceMode: 0
 --- !u!1 &1037001232
 GameObject:
   m_ObjectHideFlags: 0
@@ -1243,7 +1261,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1663067439}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 442817910dcb4ee409f5a702c32baeec, type: 3}
   m_Name: 
@@ -1268,6 +1286,8 @@ MonoBehaviour:
   arSession: {fileID: 310565683}
   imageUrl: https://i.imgur.com/wpJuarJ.png
   physicalImageSize: 0.21
+  downPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
+    type: 3}
   upPrefab: {fileID: 1238506057228474748, guid: d62c31cbb2ec645fea8fef9bcc23ba98,
     type: 3}
   rightPrefab: {fileID: 2412454007251077816, guid: e10e457ed5b9d48a3ac0c855783c8f28,

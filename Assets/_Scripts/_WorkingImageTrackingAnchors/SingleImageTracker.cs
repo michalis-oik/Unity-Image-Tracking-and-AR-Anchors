@@ -20,6 +20,7 @@ public class SingleImageTracker : MonoBehaviour
     [SerializeField] private float physicalImageSize = 0.1f;
 
     [Header("Spawning Setup")]
+    [SerializeField] private GameObject downPrefab;
     [SerializeField] private GameObject upPrefab;
     [SerializeField] private GameObject rightPrefab;
     [SerializeField] private GameObject forwardPrefab;
@@ -273,13 +274,22 @@ public class SingleImageTracker : MonoBehaviour
         // Calculate positions relative to the anchor
         // Use local space offsets instead of world space to ensure proper placement
         Vector3 upPos = anchor.position + anchor.up * spawnDistance;
+        Vector3 downPos = anchor.position - anchor.up * spawnDistance;
         Vector3 rightPos = anchor.position + anchor.right * spawnDistance;
         Vector3 forwardPos = anchor.position + anchor.forward * spawnDistance;
+
 
         // Instantiate objects
         if (upPrefab != null)
         {
-            GameObject upObj = Instantiate(upPrefab, upPos, anchor.rotation);
+            GameObject upObj = Instantiate(upPrefab, downPos, anchor.rotation);
+            upObj.transform.SetParent(anchor);
+            spawnedObjects.Add(upObj);
+        }
+
+        if (downPrefab != null)
+        {
+            GameObject upObj = Instantiate(downPrefab, upPos, anchor.rotation);
             upObj.transform.SetParent(anchor);
             spawnedObjects.Add(upObj);
         }
