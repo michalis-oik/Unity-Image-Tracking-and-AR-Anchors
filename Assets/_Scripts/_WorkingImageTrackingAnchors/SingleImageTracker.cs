@@ -197,7 +197,6 @@ public class SingleImageTracker : MonoBehaviour
 
     #endregion
     
-    // <<< NEW: Method to calculate and display the distance
     private void UpdateDistanceText(ARTrackedImage trackedImage)
     {
         // Don't update distance if objects are already spawned, or UI isn't set
