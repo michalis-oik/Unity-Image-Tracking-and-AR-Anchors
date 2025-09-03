@@ -238,6 +238,16 @@ public class ConfigurableImageTracker : MonoBehaviour
             return;
         }
 
+        // Validate that all reference images have names
+        for (int i = 0; i < referenceImageLibrary.count; i++)
+        {
+            var referenceImage = referenceImageLibrary[i];
+            if (string.IsNullOrEmpty(referenceImage.name))
+            {
+                UpdateStatus($"Warning: Reference image at index {i} has no name. This may cause tracking issues.");
+            }
+        }
+
         trackedImageManager.referenceLibrary = referenceImageLibrary;
         libraryInitialized = true;
         UpdateStatus($"Using inspector reference library with {referenceImageLibrary.count} images");
@@ -297,58 +307,74 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
     {
+        // Check if referenceImage is null or if the name is null/empty
+        Debug.Log("TRACKED IMAGE NAME IS " + trackedImage.referenceImage.name);
+        if (trackedImage.referenceImage == null || string.IsNullOrEmpty(trackedImage.referenceImage.name))
+        {
+            Debug.LogWarning("Tracked image has no valid reference image or name.");
+            return;
+        }
+
         string imageName = trackedImage.referenceImage.name;
         
-        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && !trackedGameObjects.ContainsKey(imageName))
+        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking)
         {
-            SetTrackingState(TrackingState.Tracking);
-            
-            GameObject rootObject = null;
-            bool isAnchor = false;
-            
-            if (trackingMode == TrackingMode.AnchorBased)
+            if (!trackedGameObjects.ContainsKey(imageName))
             {
-                Pose anchorPose = new Pose(trackedImage.transform.position, trackedImage.transform.rotation);
-                Result<ARAnchor> result = await anchorManager.TryAddAnchorAsync(anchorPose);
-
-                if (result.status.IsSuccess())
+                SetTrackingState(TrackingState.Tracking);
+                
+                GameObject rootObject = null;
+                bool isAnchor = false;
+                
+                if (trackingMode == TrackingMode.AnchorBased && anchorManager != null)
                 {
-                    rootObject = result.value.gameObject;
-                    rootObject.name = $"Anchor - {imageName}";
-                    isAnchor = true;
-                    UpdateStatus($"Anchor created for '{imageName}'");
-                }
-                else
-                {
-                    UpdateStatus($"Failed to create anchor for '{imageName}'");
-                    return;
-                }
-            }
-            else // TransformBased
-            {
-                rootObject = new GameObject($"Transform - {imageName}");
-                rootObject.transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
-                isAnchor = false;
-                UpdateStatus($"Transform root created for '{imageName}'");
-            }
-            
-            trackedGameObjects[imageName] = rootObject;
-            
-            TrackedImageResult resultPayload = new TrackedImageResult
-            {
-                ImageName = imageName,
-                RootTransform = rootObject.transform,
-                IsRootAnchor = isAnchor
-            };
-            OnImageTracked?.Invoke(resultPayload);
+                    Pose anchorPose = new Pose(trackedImage.transform.position, trackedImage.transform.rotation);
+                    Result<ARAnchor> result = await anchorManager.TryAddAnchorAsync(anchorPose);
 
-            OnResetButtonStateChange?.Invoke(true);
-        }
-        else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && trackedGameObjects.ContainsKey(imageName))
-        {
-            if (trackingMode == TrackingMode.TransformBased)
+                    if (result.status.IsSuccess())
+                    {
+                        rootObject = result.value.gameObject;
+                        rootObject.name = $"Anchor - {imageName}";
+                        isAnchor = true;
+                        UpdateStatus($"Anchor created for '{imageName}'");
+                    }
+                    else
+                    {
+                        UpdateStatus($"Failed to create anchor for '{imageName}'");
+                        // Fall back to transform-based tracking
+                        rootObject = new GameObject($"Transform - {imageName}");
+                        rootObject.transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
+                        isAnchor = false;
+                        UpdateStatus($"Transform root created for '{imageName}' (anchor fallback)");
+                    }
+                }
+                else // TransformBased or anchor manager is null
+                {
+                    rootObject = new GameObject($"Transform - {imageName}");
+                    rootObject.transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
+                    isAnchor = false;
+                    UpdateStatus($"Transform root created for '{imageName}'");
+                }
+                
+                trackedGameObjects[imageName] = rootObject;
+                
+                TrackedImageResult resultPayload = new TrackedImageResult
+                {
+                    ImageName = imageName,
+                    RootTransform = rootObject.transform,
+                    IsRootAnchor = isAnchor
+                };
+                OnImageTracked?.Invoke(resultPayload);
+
+                OnResetButtonStateChange?.Invoke(true);
+            }
+            else
             {
-                trackedGameObjects[imageName].transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
+                // Update existing tracked object position if using transform-based tracking
+                if (trackingMode == TrackingMode.TransformBased && trackedGameObjects.TryGetValue(imageName, out GameObject existingObject))
+                {
+                    existingObject.transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
+                }
             }
         }
         else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
