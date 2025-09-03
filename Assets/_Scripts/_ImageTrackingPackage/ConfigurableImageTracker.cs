@@ -2,10 +2,8 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using UnityEngine.Networking;
-using UnityEngine.UI;
 using UnityEngine.Events;
 using System.Collections;
-using TMPro;
 
 public class ConfigurableImageTracker : MonoBehaviour
 {
@@ -37,12 +35,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     [SerializeField] private string imageUrl;
     [SerializeField] private float physicalImageSize = 0.1f;
 
-    [Header("UI Elements")]
-    [SerializeField] private Button trackButton;
-    [SerializeField] private Button resetButton;
-    [SerializeField] private TextMeshProUGUI statusText;
-    [SerializeField] private TextMeshProUGUI distanceText;
-
     // State Variables
     private bool isDownloading = false;
     private MutableRuntimeReferenceImageLibrary runtimeLibrary;
@@ -65,28 +57,15 @@ public class ConfigurableImageTracker : MonoBehaviour
     public UnityEvent OnTrackingLost;
     public UnityEvent OnTrackingRestored;
     public UnityEvent OnTrackingReset;
+    public UnityEvent<string> OnStatusUpdate;
+    public UnityEvent<float> OnDistanceUpdate;
+    public UnityEvent<bool> OnTrackingButtonStateChange;
+    public UnityEvent<bool> OnResetButtonStateChange;
 
     void Start()
     {
-        // Setup UI
-        if (trackButton != null)
-        {
-            trackButton.onClick.AddListener(StartImageTracking);
-        }
-
-        if (resetButton != null)
-        {
-            resetButton.gameObject.SetActive(false);
-            resetButton.onClick.AddListener(ResetExperience);
-        }
-
-        if (distanceText != null)
-        {
-            distanceText.gameObject.SetActive(false);
-        }
-
-        UpdateStatus("Press 'Track Image' to begin");
         SetTrackingState(TrackingState.NotInitialized);
+        UpdateStatus("Press 'Track Image' to begin");
     }
 
     void OnEnable()
@@ -105,7 +84,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         }
     }
 
-    #region Image Tracking
+    #region Public API Methods
     public void StartImageTracking()
     {
         if (isDownloading) return;
@@ -122,11 +101,62 @@ public class ConfigurableImageTracker : MonoBehaviour
         }
     }
 
+    public void ResetExperience()
+    {
+        UpdateStatus("Resetting experience...");
+
+        if (spawnedAnchor != null)
+        {
+            Destroy(spawnedAnchor.gameObject);
+            spawnedAnchor = null;
+        }
+
+        if (imageTrackingRoot != null)
+        {
+            Destroy(imageTrackingRoot);
+            imageTrackingRoot = null;
+        }
+
+        libraryInitialized = false;
+
+        if (trackedImageManager != null)
+        {
+            trackedImageManager.enabled = false;
+        }
+
+        OnResetButtonStateChange?.Invoke(false);
+        OnTrackingButtonStateChange?.Invoke(true);
+
+        if (planeVisualizerController != null)
+            planeVisualizerController.ShowPlanes();
+
+        OnTrackingReset?.Invoke();
+        SetTrackingState(TrackingState.NotInitialized);
+        UpdateStatus("Press 'Track Image' to begin");
+    }
+
+    public void SetImageUrl(string url)
+    {
+        imageUrl = url;
+    }
+
+    public void SetPhysicalImageSize(float size)
+    {
+        physicalImageSize = size;
+    }
+
+    public void SetTrackingMode(TrackingMode mode)
+    {
+        trackingMode = mode;
+    }
+    #endregion
+
+    #region Image Tracking
     private IEnumerator DownloadAndSetupImage()
     {
         isDownloading = true;
         SetTrackingState(TrackingState.Downloading);
-        if (trackButton != null) trackButton.interactable = false;
+        OnTrackingButtonStateChange?.Invoke(false);
         
         UpdateStatus("Downloading image...");
         
@@ -136,7 +166,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         if (request.result != UnityWebRequest.Result.Success)
         {
             UpdateStatus($"Error: Failed to download image.\n{request.error}");
-            if (trackButton != null) trackButton.interactable = true;
+            OnTrackingButtonStateChange?.Invoke(true);
             isDownloading = false;
             SetTrackingState(TrackingState.NotInitialized);
             yield break;
@@ -168,7 +198,7 @@ public class ConfigurableImageTracker : MonoBehaviour
             if (runtimeLibrary == null)
             {
                 UpdateStatus("Error: Mutable runtime library not supported.");
-                if (trackButton != null) trackButton.interactable = true;
+                OnTrackingButtonStateChange?.Invoke(true);
                 return;
             }
         }
@@ -190,7 +220,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         libraryInitialized = true;
 
         UpdateStatus("Ready! Please scan the image.");
-        if (trackButton != null) trackButton.interactable = true;
+        OnTrackingButtonStateChange?.Invoke(true);
         
         if (planeVisualizerController != null)
             planeVisualizerController.ShowPlanes();
@@ -209,25 +239,20 @@ public class ConfigurableImageTracker : MonoBehaviour
         // Process added and updated images
         foreach (ARTrackedImage trackedImage in eventArgs.added)
         {
-            UpdateDistanceText(trackedImage);
+            UpdateDistance(trackedImage);
             ProcessTrackedImage(trackedImage);
         }
 
         foreach (ARTrackedImage trackedImage in eventArgs.updated)
         {
-            UpdateDistanceText(trackedImage);
+            UpdateDistance(trackedImage);
             ProcessTrackedImage(trackedImage);
         }
 
-        foreach (var trackedImage in eventArgs.removed)
+        foreach (var trackedImagePair in eventArgs.removed)
         {
-            if (distanceText != null && downloadedTexture != null)
-            {
-                distanceText.gameObject.SetActive(false);
-            }
-            
             // If we lose tracking of our target image
-            if (trackedImage.Value.referenceImage.name == downloadedTexture.name)
+            if (trackedImagePair.Value.referenceImage.name == downloadedTexture?.name)
             {
                 SetTrackingState(TrackingState.Lost);
                 OnTrackingLost?.Invoke();
@@ -236,27 +261,18 @@ public class ConfigurableImageTracker : MonoBehaviour
     }
     #endregion
     
-    private void UpdateDistanceText(ARTrackedImage trackedImage)
+    private void UpdateDistance(ARTrackedImage trackedImage)
     {
-        if (distanceText == null || downloadedTexture == null) return;
+        if (downloadedTexture == null) return;
         
-        // Only show distance for the correct image
+        // Only update distance for the correct image
         if (trackedImage.referenceImage.name != downloadedTexture.name) return;
 
         if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking || trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
-            if (!distanceText.gameObject.activeSelf)
-            {
-                distanceText.gameObject.SetActive(true);
-            }
             // Calculate distance between the main camera and the tracked image
             float distance = Vector3.Distance(Camera.main.transform.position, trackedImage.transform.position);
-            distanceText.text = $"Distance: {distance:F2} m";
-        }
-        else
-        {
-            // If tracking is lost, hide the text
-            distanceText.gameObject.SetActive(false);
+            OnDistanceUpdate?.Invoke(distance);
         }
     }
 
@@ -287,8 +303,8 @@ public class ConfigurableImageTracker : MonoBehaviour
                     OnAnchorCreated?.Invoke(spawnedAnchor);
                     
                     UpdateStatus("Anchor created successfully!");
-                    if (resetButton != null) resetButton.gameObject.SetActive(true);
-                    if (trackButton != null) trackButton.interactable = false;
+                    OnResetButtonStateChange?.Invoke(true);
+                    OnTrackingButtonStateChange?.Invoke(false);
                     if (trackedImageManager != null) trackedImageManager.enabled = false;
                 }
                 else
@@ -304,8 +320,8 @@ public class ConfigurableImageTracker : MonoBehaviour
                     imageTrackingRoot = new GameObject("ImageTrackingRoot");
                     OnTransformCreated?.Invoke(imageTrackingRoot.transform);
                     UpdateStatus("Transform root created successfully!");
-                    if (resetButton != null) resetButton.gameObject.SetActive(true);
-                    if (trackButton != null) trackButton.interactable = false;
+                    OnResetButtonStateChange?.Invoke(true);
+                    OnTrackingButtonStateChange?.Invoke(false);
                 }
                 
                 // Update the transform position and rotation
@@ -329,60 +345,9 @@ public class ConfigurableImageTracker : MonoBehaviour
     }
     #endregion
 
-    #region Reset
-    public void ResetExperience()
-    {
-        UpdateStatus("Resetting experience...");
-
-        if (spawnedAnchor != null)
-        {
-            Destroy(spawnedAnchor.gameObject);
-            spawnedAnchor = null;
-        }
-
-        if (imageTrackingRoot != null)
-        {
-            Destroy(imageTrackingRoot);
-            imageTrackingRoot = null;
-        }
-
-        libraryInitialized = false;
-
-        if (trackedImageManager != null)
-        {
-            trackedImageManager.enabled = false;
-        }
-
-        if (distanceText != null)
-        {
-            distanceText.gameObject.SetActive(false);
-        }
-
-        if (resetButton != null)
-        {
-            resetButton.gameObject.SetActive(false);
-        }
-
-        if (trackButton != null)
-        {
-            trackButton.interactable = true;
-        }
-
-        if (planeVisualizerController != null)
-            planeVisualizerController.ShowPlanes();
-
-        OnTrackingReset?.Invoke();
-        SetTrackingState(TrackingState.NotInitialized);
-        UpdateStatus("Press 'Track Image' to begin");
-    }
-    #endregion
-
     private void UpdateStatus(string message)
     {
-        if (statusText != null)
-        {
-            statusText.text = message;
-        }
+        OnStatusUpdate?.Invoke(message);
         Debug.Log($"[Status]: {message}");
     }
     
@@ -395,19 +360,6 @@ public class ConfigurableImageTracker : MonoBehaviour
             OnTrackingStateChanged?.Invoke(newState);
         }
     }
-
-    void OnDestroy()
-    {
-        if (trackButton != null)
-        {
-            trackButton.onClick.RemoveAllListeners();
-        }
-        
-        if (resetButton != null)
-        {
-            resetButton.onClick.RemoveAllListeners();
-        }
-    }
     
     // Public properties to access tracking results
     public ARAnchor AnchorResult => spawnedAnchor;
@@ -415,4 +367,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     public bool IsTracking => (trackingMode == TrackingMode.AnchorBased && spawnedAnchor != null) || 
                              (trackingMode == TrackingMode.TransformBased && imageTrackingRoot != null);
     public TrackingState CurrentTrackingState => currentState;
+    public string CurrentImageUrl => imageUrl;
+    public float CurrentImageSize => physicalImageSize;
 }
