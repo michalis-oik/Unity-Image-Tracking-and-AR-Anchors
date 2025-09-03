@@ -4,6 +4,7 @@ using UnityEngine.XR.ARSubsystems;
 using UnityEngine.Networking;
 using UnityEngine.Events;
 using System.Collections;
+using System.Collections.Generic; // Required for Dictionaries
 
 public class ConfigurableImageTracker : MonoBehaviour
 {
@@ -37,40 +38,33 @@ public class ConfigurableImageTracker : MonoBehaviour
     [SerializeField] private TrackingMode trackingMode = TrackingMode.AnchorBased;
     [SerializeField] private LibrarySource librarySource = LibrarySource.DynamicCreation;
 
-    [Header("Image Target Setup")]
-    [SerializeField] private string imageUrl;
-    [SerializeField] private float physicalImageSize = 0.1f;
+    // --- MODIFIED: Replaced single image URL with a collection ---
+    [Header("Image Target Setup (Dynamic Creation)")]
+    [SerializeField] private URLTrackedImageCollection urlImageCollection;
 
     [Header("Reference Library (Inspector Reference Mode Only)")]
     [SerializeField] private XRReferenceImageLibrary referenceImageLibrary;
 
     // State Variables
-    private bool isDownloading = false;
     private MutableRuntimeReferenceImageLibrary runtimeLibrary;
-    private Texture2D downloadedTexture;
     private bool libraryInitialized = false;
-
-    // Tracking Results
-    private ARAnchor spawnedAnchor;
-    private GameObject imageTrackingRoot;
     private TrackingState currentState = TrackingState.NotInitialized;
 
-    // Events for external components
+    private Dictionary<string, Texture2D> downloadedTextures = new Dictionary<string, Texture2D>();
+    private Dictionary<string, GameObject> trackedGameObjects = new Dictionary<string, GameObject>();
+
     [Header("Tracking Events")]
+    [Tooltip("Fired when a new image is successfully tracked, providing the result.")]
+    public TrackedImageResultEvent OnImageTracked;
 
     [Header("Setup & Initialization Events")]
     public UnityEvent OnTrackingInitialized;
-    public UnityEvent OnImageDownloaded;
+    public UnityEvent OnAllImagesDownloaded;
     public UnityEvent OnReadyToScan;
-
-    [Header("Tracking Result Events")]
-    public UnityEvent<ARAnchor> OnAnchorCreated;
-    public UnityEvent<Transform> OnTransformCreated;
 
     [Header("Tracking State Events")]
     public UnityEvent<TrackingState> OnTrackingStateChanged;
     public UnityEvent OnTrackingLost;
-    public UnityEvent OnTrackingRestored;
     public UnityEvent OnTrackingReset;
 
     [Header("UI Update Events")]
@@ -78,6 +72,7 @@ public class ConfigurableImageTracker : MonoBehaviour
     public UnityEvent<float> OnDistanceUpdate;
     public UnityEvent<bool> OnTrackingButtonStateChange;
     public UnityEvent<bool> OnResetButtonStateChange;
+
 
     void Start()
     {
@@ -104,16 +99,14 @@ public class ConfigurableImageTracker : MonoBehaviour
     #region Public API Methods
     public void StartImageTracking()
     {
-        if (isDownloading) return;
+        if (currentState == TrackingState.Downloading) return;
 
-        if (librarySource == LibrarySource.DynamicCreation && downloadedTexture == null)
+        if (librarySource == LibrarySource.DynamicCreation && downloadedTextures.Count == 0)
         {
-            // First time - need to download
-            StartCoroutine(DownloadAndSetupImage());
+            StartCoroutine(DownloadAndSetupImages());
         }
         else
         {
-            // Already downloaded or using inspector reference, just setup tracking
             SetupImageTracking();
         }
     }
@@ -122,17 +115,13 @@ public class ConfigurableImageTracker : MonoBehaviour
     {
         UpdateStatus("Resetting experience...");
 
-        if (spawnedAnchor != null)
+        // Destroy all spawned game objects
+        foreach (var trackedObject in trackedGameObjects.Values)
         {
-            Destroy(spawnedAnchor.gameObject);
-            spawnedAnchor = null;
+            // Anchors are components on GameObjects, so destroying the GameObject is correct.
+            Destroy(trackedObject);
         }
-
-        if (imageTrackingRoot != null)
-        {
-            Destroy(imageTrackingRoot);
-            imageTrackingRoot = null;
-        }
+        trackedGameObjects.Clear();
 
         libraryInitialized = false;
 
@@ -149,61 +138,66 @@ public class ConfigurableImageTracker : MonoBehaviour
         UpdateStatus("Press 'Track Image' to begin");
     }
 
-    public void SetImageUrl(string url)
+    public void SetImageCollection(URLTrackedImageCollection collection)
     {
-        imageUrl = url;
-    }
-
-    public void SetPhysicalImageSize(float size)
-    {
-        physicalImageSize = size;
-    }
-
-    public void SetTrackingMode(TrackingMode mode)
-    {
-        trackingMode = mode;
-    }
-
-    public void SetLibrarySource(LibrarySource source)
-    {
-        librarySource = source;
-    }
-
-    public void SetReferenceImageLibrary(XRReferenceImageLibrary library)
-    {
-        referenceImageLibrary = library;
+        urlImageCollection = collection;
+        // Reset state if a new collection is provided mid-session
+        if(currentState != TrackingState.NotInitialized)
+        {
+            ResetExperience();
+            downloadedTextures.Clear();
+        }
     }
     #endregion
 
-    #region Image Tracking
-    private IEnumerator DownloadAndSetupImage()
+    #region Image Tracking Setup
+    private IEnumerator DownloadAndSetupImages()
     {
-        isDownloading = true;
         SetTrackingState(TrackingState.Downloading);
         OnTrackingButtonStateChange?.Invoke(false);
 
-        UpdateStatus("Downloading image...");
-
-        UnityWebRequest request = UnityWebRequestTexture.GetTexture(imageUrl);
-        yield return request.SendWebRequest();
-
-        if (request.result != UnityWebRequest.Result.Success)
+        if (urlImageCollection == null || urlImageCollection.uRLTrackedImages.Count == 0)
         {
-            UpdateStatus($"Error: Failed to download image.\n{request.error}");
-            OnTrackingButtonStateChange?.Invoke(true);
-            isDownloading = false;
+            UpdateStatus("Error: No images in the collection to download.");
             SetTrackingState(TrackingState.NotInitialized);
+            OnTrackingButtonStateChange?.Invoke(true);
             yield break;
         }
 
-        downloadedTexture = DownloadHandlerTexture.GetContent(request);
-        downloadedTexture.name = "DynamicTarget";
+        int totalImages = urlImageCollection.uRLTrackedImages.Count;
+        int downloadedCount = 0;
 
-        UpdateStatus("Image downloaded. Setting up tracking...");
-        OnImageDownloaded?.Invoke();
+        foreach (var imageToTrack in urlImageCollection.uRLTrackedImages)
+        {
+            UpdateStatus($"Downloading image {downloadedCount + 1}/{totalImages}: {imageToTrack.name}");
+            UnityWebRequest request = UnityWebRequestTexture.GetTexture(imageToTrack.url);
+            yield return request.SendWebRequest();
 
-        SetupImageTracking();
-        isDownloading = false;
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                texture.name = imageToTrack.name; // Crucial for matching later
+                downloadedTextures[imageToTrack.name] = texture;
+                downloadedCount++;
+            }
+            else
+            {
+                UpdateStatus($"Error downloading {imageToTrack.name}: {request.error}");
+            }
+        }
+
+        if (downloadedCount > 0)
+        {
+            UpdateStatus($"{downloadedCount}/{totalImages} images downloaded. Setting up tracking...");
+            OnAllImagesDownloaded?.Invoke();
+            SetupImageTracking();
+        }
+        else
+        {
+            UpdateStatus("Error: Failed to download any images.");
+            SetTrackingState(TrackingState.NotInitialized);
+            OnTrackingButtonStateChange?.Invoke(true);
+        }
     }
 
     private void SetupImageTracking()
@@ -233,7 +227,7 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         trackedImageManager.enabled = true;
 
-        UpdateStatus("Ready! Please scan the image.");
+        UpdateStatus("Ready! Please scan for images.");
         OnTrackingButtonStateChange?.Invoke(true);
 
         SetTrackingState(TrackingState.ReadyToScan);
@@ -266,16 +260,24 @@ public class ConfigurableImageTracker : MonoBehaviour
             }
         }
 
-        bool imageExists = false;
-        if (runtimeLibrary.count > 0)
+        if (downloadedTextures.Count == 0)
         {
-            imageExists = true;
+            UpdateStatus("Error: No downloaded textures to create a library from.");
+            return;
         }
 
-        if (!imageExists && downloadedTexture != null)
+        // Add all downloaded images to the runtime library
+        foreach (var imageToTrack in urlImageCollection.uRLTrackedImages)
         {
-            var jobState = runtimeLibrary.ScheduleAddImageWithValidationJob(
-                downloadedTexture, downloadedTexture.name, physicalImageSize);
+            if (downloadedTextures.ContainsKey(imageToTrack.name))
+            {
+                Texture2D texture = downloadedTextures[imageToTrack.name];
+                runtimeLibrary.ScheduleAddImageWithValidationJob(
+                    texture,
+                    imageToTrack.name,
+                    imageToTrack.physicalImageSize
+                );
+            }
         }
 
         trackedImageManager.referenceLibrary = runtimeLibrary;
@@ -283,12 +285,11 @@ public class ConfigurableImageTracker : MonoBehaviour
     }
     #endregion
 
-    #region Image Tracking Event Handler
+    #region Event Handlers & Processing
     private void OnTrackablesChanged(ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs)
     {
         if (!libraryInitialized) return;
 
-        // Process added and updated images
         foreach (ARTrackedImage trackedImage in eventArgs.added)
         {
             UpdateDistance(trackedImage);
@@ -301,106 +302,88 @@ public class ConfigurableImageTracker : MonoBehaviour
             ProcessTrackedImage(trackedImage);
         }
 
-        foreach (var kvp in eventArgs.removed)
-        {
-            ARTrackedImage trackedImage = kvp.Value;
-            // If we lose tracking of our target image
-            if (ShouldProcessImage(trackedImage))
-            {
-                SetTrackingState(TrackingState.Lost);
-                OnTrackingLost?.Invoke();
-            }
-        }
+        // You could handle 'removed' if you want to, e.g., hide the object.
+        // For now, we'll let the object persist even when tracking is lost.
     }
-
-    private bool ShouldProcessImage(ARTrackedImage trackedImage)
-    {
-        if (librarySource == LibrarySource.DynamicCreation)
-        {
-            return downloadedTexture != null && trackedImage.referenceImage.name == downloadedTexture.name;
-        }
-        else
-        {
-            // For inspector reference, process all images or implement specific logic
-            return true;
-        }
-    }
-    #endregion
 
     private void UpdateDistance(ARTrackedImage trackedImage)
     {
-        if (!ShouldProcessImage(trackedImage)) return;
-
         if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking ||
             trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
-            // Calculate distance between the main camera and the tracked image
             float distance = Vector3.Distance(Camera.main.transform.position, trackedImage.transform.position);
             OnDistanceUpdate?.Invoke(distance);
         }
     }
 
-    #region ProcessTrackedImage
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
     {
-        if (!ShouldProcessImage(trackedImage)) return;
+        string imageName = trackedImage.referenceImage.name;
 
-        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking)
+        // If the image is being tracked and we haven't created an object for it yet
+        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && !trackedGameObjects.ContainsKey(imageName))
         {
             SetTrackingState(TrackingState.Tracking);
-
+            
+            GameObject rootObject = null;
+            bool isAnchor = false;
+            
             if (trackingMode == TrackingMode.AnchorBased)
             {
-                // Anchor-based tracking
-                if (spawnedAnchor != null)
-                {
-                    Destroy(spawnedAnchor.gameObject);
-                }
-
                 Pose anchorPose = new Pose(trackedImage.transform.position, trackedImage.transform.rotation);
                 Result<ARAnchor> result = await anchorManager.TryAddAnchorAsync(anchorPose);
 
                 if (result.status.IsSuccess())
                 {
-                    spawnedAnchor = result.value;
-                    OnAnchorCreated?.Invoke(spawnedAnchor);
-
-                    UpdateStatus("Anchor created successfully!");
-                    OnResetButtonStateChange?.Invoke(true);
-                    OnTrackingButtonStateChange?.Invoke(false);
-                    if (trackedImageManager != null) trackedImageManager.enabled = false;
+                    rootObject = result.value.gameObject;
+                    rootObject.name = $"Anchor - {imageName}";
+                    isAnchor = true;
+                    UpdateStatus($"Anchor created for '{imageName}'");
                 }
                 else
                 {
-                    UpdateStatus("Failed to create an anchor. Please try again.");
+                    UpdateStatus($"Failed to create anchor for '{imageName}'");
+                    return; // Abort if anchor creation fails
                 }
             }
-            else
+            else // TransformBased
             {
-                // Transform-based tracking
-                if (imageTrackingRoot == null)
-                {
-                    imageTrackingRoot = new GameObject("ImageTrackingRoot");
-                    OnTransformCreated?.Invoke(imageTrackingRoot.transform);
-                    UpdateStatus("Transform root created successfully!");
-                    OnResetButtonStateChange?.Invoke(true);
-                    OnTrackingButtonStateChange?.Invoke(false);
-                }
+                rootObject = new GameObject($"Transform - {imageName}");
+                rootObject.transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
+                isAnchor = false;
+                UpdateStatus($"Transform root created for '{imageName}'");
+            }
 
-                // Update the transform position and rotation
-                imageTrackingRoot.transform.SetPositionAndRotation(
-                    trackedImage.transform.position, trackedImage.transform.rotation);
+            // Store the created object
+            trackedGameObjects[imageName] = rootObject;
 
-                // If we were in limited or lost state before, notify that tracking is restored
-                if (currentState == TrackingState.Limited || currentState == TrackingState.Lost)
-                {
-                    OnTrackingRestored?.Invoke();
-                }
+            // --- NEW: Create and invoke the result event ---
+            TrackedImageResult resultPayload = new TrackedImageResult
+            {
+                ImageName = imageName,
+                RootTransform = rootObject.transform,
+                IsRootAnchor = isAnchor
+            };
+            OnImageTracked?.Invoke(resultPayload);
+
+            OnResetButtonStateChange?.Invoke(true);
+        }
+        // If we are already tracking this image, just update its position (for TransformBased mode)
+        else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && trackedGameObjects.ContainsKey(imageName))
+        {
+            if (trackingMode == TrackingMode.TransformBased)
+            {
+                trackedGameObjects[imageName].transform.SetPositionAndRotation(trackedImage.transform.position, trackedImage.transform.rotation);
             }
         }
         else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
             SetTrackingState(TrackingState.Limited);
+        }
+        else // None or Lost
+        {
+            // We can invoke OnTrackingLost here if we want to react to a specific image being lost
+            OnTrackingLost?.Invoke();
         }
     }
     #endregion
@@ -415,20 +398,18 @@ public class ConfigurableImageTracker : MonoBehaviour
     {
         if (currentState != newState)
         {
-            TrackingState previousState = currentState;
             currentState = newState;
             OnTrackingStateChanged?.Invoke(newState);
         }
     }
 
-    // Public properties to access tracking results
-    public ARAnchor AnchorResult => spawnedAnchor;
-    public Transform TransformResult => imageTrackingRoot != null ? imageTrackingRoot.transform : null;
-    public bool IsTracking => (trackingMode == TrackingMode.AnchorBased && spawnedAnchor != null) ||
-                             (trackingMode == TrackingMode.TransformBased && imageTrackingRoot != null);
-    public TrackingState CurrentTrackingState => currentState;
-    public string CurrentImageUrl => imageUrl;
-    public float CurrentImageSize => physicalImageSize;
-    public LibrarySource CurrentLibrarySource => librarySource;
-    public XRReferenceImageLibrary CurrentReferenceLibrary => referenceImageLibrary;
+    // --- NEW: Public method to get a specific tracked object ---
+    public Transform GetTrackedObjectTransform(string imageName)
+    {
+        if (trackedGameObjects.TryGetValue(imageName, out GameObject obj))
+        {
+            return obj.transform;
+        }
+        return null;
+    }
 }

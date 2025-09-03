@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
 public class URLTrackedImageCollection
 {
-    public List<URLTrackedImage> uRLTrackedImages;
+    [SerializeField] public List<URLTrackedImage> uRLTrackedImages = new List<URLTrackedImage>();
 }

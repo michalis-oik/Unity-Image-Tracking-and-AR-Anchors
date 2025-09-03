@@ -1,8 +1,9 @@
 using UnityEngine;
 
+[System.Serializable]
 public class URLTrackedImage
 {
-    public string name { get; set; }
-    public string url { get; set; }
-    public float physicalImageSize { get; set; }
+    [SerializeField] public string name;
+    [SerializeField] public string url;
+    [SerializeField] public float physicalImageSize = 0.1f;
 }

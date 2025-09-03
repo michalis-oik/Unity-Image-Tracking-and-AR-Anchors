@@ -21,30 +21,20 @@ public class ImageTrackerUIController : MonoBehaviour
 
     void Start()
     {
-        // Setup button listeners
-        if (trackButton != null)
-        {
-            trackButton.onClick.AddListener(OnTrackButtonClicked);
-        }
-
+        if (trackButton != null) trackButton.onClick.AddListener(OnTrackButtonClicked);
         if (resetButton != null)
         {
             resetButton.onClick.AddListener(OnResetButtonClicked);
             resetButton.gameObject.SetActive(false);
         }
 
-        if (distanceText != null && distancePanel != null)
-        {
-            distancePanel.SetActive(false);
-        }
+        if (distancePanel != null) distancePanel.SetActive(false);
 
-        // Try to find plane manager if not assigned
         if (planeManager == null && autoManagePlanes)
         {
             planeManager = FindFirstObjectByType<ARPlaneManager>();
         }
 
-        // Subscribe to tracker events
         if (imageTracker != null)
         {
             imageTracker.OnStatusUpdate.AddListener(UpdateStatusText);
@@ -52,10 +42,9 @@ public class ImageTrackerUIController : MonoBehaviour
             imageTracker.OnTrackingButtonStateChange.AddListener(SetTrackButtonState);
             imageTracker.OnResetButtonStateChange.AddListener(SetResetButtonState);
             imageTracker.OnTrackingStateChanged.AddListener(OnTrackingStateChanged);
-            imageTracker.OnAnchorCreated.AddListener(OnAnchorCreated);
-            imageTracker.OnTransformCreated.AddListener(OnTransformCreated);
-            imageTracker.OnTrackingLost.AddListener(OnTrackingLost);
-            imageTracker.OnTrackingRestored.AddListener(OnTrackingRestored);
+
+            // --- MODIFIED: Subscribe to the new unified event ---
+            imageTracker.OnImageTracked.AddListener(OnImageTracked);
         }
     }
 
@@ -77,33 +66,13 @@ public class ImageTrackerUIController : MonoBehaviour
         }
     }
 
-    private void OnAnchorCreated(ARAnchor anchor)
+    // --- NEW: Listener for the TrackedImageResultEvent ---
+    private void OnImageTracked(TrackedImageResult result)
     {
-        if (autoManagePlanes && planeManager != null)
-        {
-            HidePlanes();
-        }
-    }
-
-    private void OnTransformCreated(Transform transform)
-    {
-        if (autoManagePlanes && planeManager != null)
-        {
-            HidePlanes();
-        }
-    }
-
-    private void OnTrackingLost()
-    {
-        // Optional: Show planes when tracking is lost
-        // if (autoManagePlanes && planeManager != null)
-        // {
-        //     ShowPlanes();
-        // }
-    }
-
-    private void OnTrackingRestored()
-    {
+        // This single function now handles both anchor and transform based results.
+        Debug.Log($"UI Controller received tracked image: {result.ImageName}, IsAnchor: {result.IsRootAnchor}");
+        
+        // Example: Hide planes once any image is successfully tracked.
         if (autoManagePlanes && planeManager != null)
         {
             HidePlanes();
@@ -148,7 +117,6 @@ public class ImageTrackerUIController : MonoBehaviour
 
     private void OnTrackingStateChanged(ConfigurableImageTracker.TrackingState state)
     {
-        // Handle UI changes based on tracking state
         switch (state)
         {
             case ConfigurableImageTracker.TrackingState.Lost:
@@ -160,48 +128,29 @@ public class ImageTrackerUIController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Sets the visibility of all currently tracked planes.
-    /// </summary>
-    /// <param name="isVisible">True to show planes, false to hide them.</param>
+    #region Plane Management
     private void SetAllPlanesActive(bool isVisible)
     {
-        if (planeManager == null)
-        {
-            Debug.LogWarning("ARPlaneManager not found!", this);
-            return;
-        }
-
-        // Iterate through all tracked planes and set their game object active/inactive.
+        if (planeManager == null) return;
         foreach (ARPlane plane in planeManager.trackables)
         {
             plane.gameObject.SetActive(isVisible);
         }
     }
-
-    // Public function to show the planes.
+    
     public void ShowPlanes()
     {
-        if (planeManager != null)
-        {
-            SetAllPlanesActive(true);
-            Debug.Log("AR Planes are now VISIBLE.");
-        }
+        SetAllPlanesActive(true);
     }
-
-    // Public function to hide the planes.
+    
     public void HidePlanes()
     {
-        if (planeManager != null)
-        {
-            SetAllPlanesActive(false);
-            Debug.Log("AR Planes are now HIDDEN.");
-        }
+        SetAllPlanesActive(false);
     }
+    #endregion
 
     void OnDestroy()
     {
-        // Clean up event listeners
         if (imageTracker != null)
         {
             imageTracker.OnStatusUpdate.RemoveListener(UpdateStatusText);
@@ -209,20 +158,11 @@ public class ImageTrackerUIController : MonoBehaviour
             imageTracker.OnTrackingButtonStateChange.RemoveListener(SetTrackButtonState);
             imageTracker.OnResetButtonStateChange.RemoveListener(SetResetButtonState);
             imageTracker.OnTrackingStateChanged.RemoveListener(OnTrackingStateChanged);
-            imageTracker.OnAnchorCreated.RemoveListener(OnAnchorCreated);
-            imageTracker.OnTransformCreated.RemoveListener(OnTransformCreated);
-            imageTracker.OnTrackingLost.RemoveListener(OnTrackingLost);
-            imageTracker.OnTrackingRestored.RemoveListener(OnTrackingRestored);
+            // --- MODIFIED: Unsubscribe from the new event ---
+            imageTracker.OnImageTracked.RemoveListener(OnImageTracked);
         }
 
-        if (trackButton != null)
-        {
-            trackButton.onClick.RemoveAllListeners();
-        }
-
-        if (resetButton != null)
-        {
-            resetButton.onClick.RemoveAllListeners();
-        }
+        if (trackButton != null) trackButton.onClick.RemoveAllListeners();
+        if (resetButton != null) resetButton.onClick.RemoveAllListeners();
     }
 }
