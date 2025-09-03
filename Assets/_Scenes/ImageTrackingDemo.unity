@@ -1449,7 +1449,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trackedImageManager: {fileID: 1993576213}
   anchorManager: {fileID: 1993576214}
-  planeVisualizerController: {fileID: 1663067450}
   trackingMode: 0
   librarySource: 0
   imageUrl: https://i.imgur.com/wpJuarJ.png
@@ -1513,6 +1512,8 @@ MonoBehaviour:
   distanceText: {fileID: 1327760068}
   distancePanel: {fileID: 1327760066}
   imageTracker: {fileID: 1663067451}
+  planeManager: {fileID: 1993576209}
+  autoManagePlanes: 1
 --- !u!1 &1858539582
 GameObject:
   m_ObjectHideFlags: 0

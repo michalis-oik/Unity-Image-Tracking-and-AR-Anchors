@@ -32,7 +32,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     [Header("AR System References")]
     [SerializeField] private ARTrackedImageManager trackedImageManager;
     [SerializeField] private ARAnchorManager anchorManager;
-    [SerializeField] private PlaneVisualizerController planeVisualizerController;
 
     [Header("Tracking Configuration")]
     [SerializeField] private TrackingMode trackingMode = TrackingMode.AnchorBased;
@@ -137,9 +136,6 @@ public class ConfigurableImageTracker : MonoBehaviour
         OnResetButtonStateChange?.Invoke(false);
         OnTrackingButtonStateChange?.Invoke(true);
 
-        if (planeVisualizerController != null)
-            planeVisualizerController.ShowPlanes();
-
         OnTrackingReset?.Invoke();
         SetTrackingState(TrackingState.NotInitialized);
         UpdateStatus("Press 'Track Image' to begin");
@@ -231,9 +227,6 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         UpdateStatus("Ready! Please scan the image.");
         OnTrackingButtonStateChange?.Invoke(true);
-        
-        if (planeVisualizerController != null)
-            planeVisualizerController.ShowPlanes();
             
         SetTrackingState(TrackingState.ReadyToScan);
         OnTrackingInitialized?.Invoke();
@@ -397,8 +390,6 @@ public class ConfigurableImageTracker : MonoBehaviour
                 }
             }
             
-            if (planeVisualizerController != null)
-                planeVisualizerController.HidePlanes();
         }
         else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
