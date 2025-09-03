@@ -4,7 +4,7 @@ using UnityEngine.XR.ARSubsystems;
 using UnityEngine.Networking;
 using UnityEngine.Events;
 using System.Collections;
-using System.Collections.Generic; // Required for Dictionaries
+using System.Collections.Generic;
 
 public class ConfigurableImageTracker : MonoBehaviour
 {
@@ -357,7 +357,6 @@ public class ConfigurableImageTracker : MonoBehaviour
             // Store the created object
             trackedGameObjects[imageName] = rootObject;
 
-            // --- NEW: Create and invoke the result event ---
             TrackedImageResult resultPayload = new TrackedImageResult
             {
                 ImageName = imageName,
