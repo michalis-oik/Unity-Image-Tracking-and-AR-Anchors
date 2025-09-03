@@ -1451,8 +1451,11 @@ MonoBehaviour:
   anchorManager: {fileID: 1993576214}
   planeVisualizerController: {fileID: 1663067450}
   trackingMode: 0
+  librarySource: 0
   imageUrl: https://i.imgur.com/wpJuarJ.png
   physicalImageSize: 0.21
+  referenceImageLibrary: {fileID: 11400000, guid: 92e99ed23f1f4904798c27e6b947c976,
+    type: 2}
   OnTrackingInitialized:
     m_PersistentCalls:
       m_Calls: []

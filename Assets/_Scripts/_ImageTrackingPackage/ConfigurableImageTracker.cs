@@ -23,6 +23,12 @@ public class ConfigurableImageTracker : MonoBehaviour
         Lost
     }
 
+    public enum LibrarySource
+    {
+        DynamicCreation,
+        InspectorReference
+    }
+
     [Header("AR System References")]
     [SerializeField] private ARTrackedImageManager trackedImageManager;
     [SerializeField] private ARAnchorManager anchorManager;
@@ -30,10 +36,14 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     [Header("Tracking Configuration")]
     [SerializeField] private TrackingMode trackingMode = TrackingMode.AnchorBased;
+    [SerializeField] private LibrarySource librarySource = LibrarySource.DynamicCreation;
     
     [Header("Image Target Setup")]
     [SerializeField] private string imageUrl;
     [SerializeField] private float physicalImageSize = 0.1f;
+    
+    [Header("Reference Library (Inspector Reference Mode Only)")]
+    [SerializeField] private XRReferenceImageLibrary referenceImageLibrary;
 
     // State Variables
     private bool isDownloading = false;
@@ -89,14 +99,14 @@ public class ConfigurableImageTracker : MonoBehaviour
     {
         if (isDownloading) return;
 
-        if (downloadedTexture == null)
+        if (librarySource == LibrarySource.DynamicCreation && downloadedTexture == null)
         {
             // First time - need to download
             StartCoroutine(DownloadAndSetupImage());
         }
         else
         {
-            // Already downloaded, just setup tracking
+            // Already downloaded or using inspector reference, just setup tracking
             SetupImageTracking();
         }
     }
@@ -149,6 +159,16 @@ public class ConfigurableImageTracker : MonoBehaviour
     {
         trackingMode = mode;
     }
+
+    public void SetLibrarySource(LibrarySource source)
+    {
+        librarySource = source;
+    }
+
+    public void SetReferenceImageLibrary(XRReferenceImageLibrary library)
+    {
+        referenceImageLibrary = library;
+    }
     #endregion
 
     #region Image Tracking
@@ -192,13 +212,55 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         trackedImageManager.enabled = false;
 
+        if (librarySource == LibrarySource.InspectorReference)
+        {
+            SetupInspectorReferenceLibrary();
+        }
+        else
+        {
+            SetupDynamicLibrary();
+        }
+
+        if (!libraryInitialized)
+        {
+            OnTrackingButtonStateChange?.Invoke(true);
+            return;
+        }
+
+        trackedImageManager.enabled = true;
+
+        UpdateStatus("Ready! Please scan the image.");
+        OnTrackingButtonStateChange?.Invoke(true);
+        
+        if (planeVisualizerController != null)
+            planeVisualizerController.ShowPlanes();
+            
+        SetTrackingState(TrackingState.ReadyToScan);
+        OnTrackingInitialized?.Invoke();
+        OnReadyToScan?.Invoke();
+    }
+
+    private void SetupInspectorReferenceLibrary()
+    {
+        if (referenceImageLibrary == null)
+        {
+            UpdateStatus("Error: No reference image library assigned in Inspector");
+            return;
+        }
+
+        trackedImageManager.referenceLibrary = referenceImageLibrary;
+        libraryInitialized = true;
+        UpdateStatus($"Using inspector reference library with {referenceImageLibrary.count} images");
+    }
+
+    private void SetupDynamicLibrary()
+    {
         if (runtimeLibrary == null)
         {
             runtimeLibrary = trackedImageManager.CreateRuntimeLibrary() as MutableRuntimeReferenceImageLibrary;
             if (runtimeLibrary == null)
             {
                 UpdateStatus("Error: Mutable runtime library not supported.");
-                OnTrackingButtonStateChange?.Invoke(true);
                 return;
             }
         }
@@ -216,18 +278,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         }
 
         trackedImageManager.referenceLibrary = runtimeLibrary;
-        trackedImageManager.enabled = true;
         libraryInitialized = true;
-
-        UpdateStatus("Ready! Please scan the image.");
-        OnTrackingButtonStateChange?.Invoke(true);
-        
-        if (planeVisualizerController != null)
-            planeVisualizerController.ShowPlanes();
-            
-        SetTrackingState(TrackingState.ReadyToScan);
-        OnTrackingInitialized?.Invoke();
-        OnReadyToScan?.Invoke();
     }
     #endregion
 
@@ -249,26 +300,38 @@ public class ConfigurableImageTracker : MonoBehaviour
             ProcessTrackedImage(trackedImage);
         }
 
-        foreach (var trackedImagePair in eventArgs.removed)
+        foreach (var kvp in eventArgs.removed)
         {
+            ARTrackedImage trackedImage = kvp.Value;
             // If we lose tracking of our target image
-            if (trackedImagePair.Value.referenceImage.name == downloadedTexture?.name)
+            if (ShouldProcessImage(trackedImage))
             {
                 SetTrackingState(TrackingState.Lost);
                 OnTrackingLost?.Invoke();
             }
         }
     }
+
+    private bool ShouldProcessImage(ARTrackedImage trackedImage)
+    {
+        if (librarySource == LibrarySource.DynamicCreation)
+        {
+            return downloadedTexture != null && trackedImage.referenceImage.name == downloadedTexture.name;
+        }
+        else
+        {
+            // For inspector reference, process all images or implement specific logic
+            return true;
+        }
+    }
     #endregion
     
     private void UpdateDistance(ARTrackedImage trackedImage)
     {
-        if (downloadedTexture == null) return;
-        
-        // Only update distance for the correct image
-        if (trackedImage.referenceImage.name != downloadedTexture.name) return;
+        if (!ShouldProcessImage(trackedImage)) return;
 
-        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking || trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
+        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking || 
+            trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
             // Calculate distance between the main camera and the tracked image
             float distance = Vector3.Distance(Camera.main.transform.position, trackedImage.transform.position);
@@ -279,8 +342,7 @@ public class ConfigurableImageTracker : MonoBehaviour
     #region ProcessTrackedImage
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
     {
-        if (downloadedTexture == null || trackedImage.referenceImage.name != downloadedTexture.name)
-            return;
+        if (!ShouldProcessImage(trackedImage)) return;
 
         if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking)
         {
@@ -369,4 +431,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     public TrackingState CurrentTrackingState => currentState;
     public string CurrentImageUrl => imageUrl;
     public float CurrentImageSize => physicalImageSize;
+    public LibrarySource CurrentLibrarySource => librarySource;
+    public XRReferenceImageLibrary CurrentReferenceLibrary => referenceImageLibrary;
 }
