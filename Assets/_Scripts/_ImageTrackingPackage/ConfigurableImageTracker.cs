@@ -12,7 +12,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         AnchorBased,
         TransformBased
     }
-    
+
     public enum TrackingState
     {
         NotInitialized,
@@ -36,11 +36,11 @@ public class ConfigurableImageTracker : MonoBehaviour
     [Header("Tracking Configuration")]
     [SerializeField] private TrackingMode trackingMode = TrackingMode.AnchorBased;
     [SerializeField] private LibrarySource librarySource = LibrarySource.DynamicCreation;
-    
+
     [Header("Image Target Setup")]
     [SerializeField] private string imageUrl;
     [SerializeField] private float physicalImageSize = 0.1f;
-    
+
     [Header("Reference Library (Inspector Reference Mode Only)")]
     [SerializeField] private XRReferenceImageLibrary referenceImageLibrary;
 
@@ -49,7 +49,7 @@ public class ConfigurableImageTracker : MonoBehaviour
     private MutableRuntimeReferenceImageLibrary runtimeLibrary;
     private Texture2D downloadedTexture;
     private bool libraryInitialized = false;
-    
+
     // Tracking Results
     private ARAnchor spawnedAnchor;
     private GameObject imageTrackingRoot;
@@ -57,22 +57,22 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     // Events for external components
     [Header("Tracking Events")]
-    
+
     [Header("Setup & Initialization Events")]
     public UnityEvent OnTrackingInitialized;
     public UnityEvent OnImageDownloaded;
     public UnityEvent OnReadyToScan;
-    
+
     [Header("Tracking Result Events")]
     public UnityEvent<ARAnchor> OnAnchorCreated;
     public UnityEvent<Transform> OnTransformCreated;
-    
+
     [Header("Tracking State Events")]
     public UnityEvent<TrackingState> OnTrackingStateChanged;
     public UnityEvent OnTrackingLost;
     public UnityEvent OnTrackingRestored;
     public UnityEvent OnTrackingReset;
-    
+
     [Header("UI Update Events")]
     public UnityEvent<string> OnStatusUpdate;
     public UnityEvent<float> OnDistanceUpdate;
@@ -181,12 +181,12 @@ public class ConfigurableImageTracker : MonoBehaviour
         isDownloading = true;
         SetTrackingState(TrackingState.Downloading);
         OnTrackingButtonStateChange?.Invoke(false);
-        
+
         UpdateStatus("Downloading image...");
-        
+
         UnityWebRequest request = UnityWebRequestTexture.GetTexture(imageUrl);
         yield return request.SendWebRequest();
-        
+
         if (request.result != UnityWebRequest.Result.Success)
         {
             UpdateStatus($"Error: Failed to download image.\n{request.error}");
@@ -195,13 +195,13 @@ public class ConfigurableImageTracker : MonoBehaviour
             SetTrackingState(TrackingState.NotInitialized);
             yield break;
         }
-        
+
         downloadedTexture = DownloadHandlerTexture.GetContent(request);
         downloadedTexture.name = "DynamicTarget";
-        
+
         UpdateStatus("Image downloaded. Setting up tracking...");
         OnImageDownloaded?.Invoke();
-        
+
         SetupImageTracking();
         isDownloading = false;
     }
@@ -235,7 +235,7 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         UpdateStatus("Ready! Please scan the image.");
         OnTrackingButtonStateChange?.Invoke(true);
-            
+
         SetTrackingState(TrackingState.ReadyToScan);
         OnTrackingInitialized?.Invoke();
         OnReadyToScan?.Invoke();
@@ -326,12 +326,12 @@ public class ConfigurableImageTracker : MonoBehaviour
         }
     }
     #endregion
-    
+
     private void UpdateDistance(ARTrackedImage trackedImage)
     {
         if (!ShouldProcessImage(trackedImage)) return;
 
-        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking || 
+        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking ||
             trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
             // Calculate distance between the main camera and the tracked image
@@ -348,7 +348,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking)
         {
             SetTrackingState(TrackingState.Tracking);
-            
+
             if (trackingMode == TrackingMode.AnchorBased)
             {
                 // Anchor-based tracking
@@ -364,7 +364,7 @@ public class ConfigurableImageTracker : MonoBehaviour
                 {
                     spawnedAnchor = result.value;
                     OnAnchorCreated?.Invoke(spawnedAnchor);
-                    
+
                     UpdateStatus("Anchor created successfully!");
                     OnResetButtonStateChange?.Invoke(true);
                     OnTrackingButtonStateChange?.Invoke(false);
@@ -386,11 +386,11 @@ public class ConfigurableImageTracker : MonoBehaviour
                     OnResetButtonStateChange?.Invoke(true);
                     OnTrackingButtonStateChange?.Invoke(false);
                 }
-                
+
                 // Update the transform position and rotation
                 imageTrackingRoot.transform.SetPositionAndRotation(
                     trackedImage.transform.position, trackedImage.transform.rotation);
-                    
+
                 // If we were in limited or lost state before, notify that tracking is restored
                 if (currentState == TrackingState.Limited || currentState == TrackingState.Lost)
                 {
@@ -410,7 +410,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         OnStatusUpdate?.Invoke(message);
         Debug.Log($"[Status]: {message}");
     }
-    
+
     private void SetTrackingState(TrackingState newState)
     {
         if (currentState != newState)
@@ -420,11 +420,11 @@ public class ConfigurableImageTracker : MonoBehaviour
             OnTrackingStateChanged?.Invoke(newState);
         }
     }
-    
+
     // Public properties to access tracking results
     public ARAnchor AnchorResult => spawnedAnchor;
     public Transform TransformResult => imageTrackingRoot != null ? imageTrackingRoot.transform : null;
-    public bool IsTracking => (trackingMode == TrackingMode.AnchorBased && spawnedAnchor != null) || 
+    public bool IsTracking => (trackingMode == TrackingMode.AnchorBased && spawnedAnchor != null) ||
                              (trackingMode == TrackingMode.TransformBased && imageTrackingRoot != null);
     public TrackingState CurrentTrackingState => currentState;
     public string CurrentImageUrl => imageUrl;
