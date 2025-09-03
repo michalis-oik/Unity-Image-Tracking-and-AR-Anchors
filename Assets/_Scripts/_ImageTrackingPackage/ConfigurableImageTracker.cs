@@ -29,7 +29,7 @@ public class ConfigurableImageTracker : MonoBehaviour
         InspectorReference
     }
 
-    [Header("AR System References")]
+    [Header("AR System Dependencies")]
     [SerializeField] private ARTrackedImageManager trackedImageManager;
     [SerializeField] private ARAnchorManager anchorManager;
 
@@ -57,15 +57,23 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     // Events for external components
     [Header("Tracking Events")]
+    
+    [Header("Setup & Initialization Events")]
     public UnityEvent OnTrackingInitialized;
     public UnityEvent OnImageDownloaded;
     public UnityEvent OnReadyToScan;
+    
+    [Header("Tracking Result Events")]
     public UnityEvent<ARAnchor> OnAnchorCreated;
     public UnityEvent<Transform> OnTransformCreated;
+    
+    [Header("Tracking State Events")]
     public UnityEvent<TrackingState> OnTrackingStateChanged;
     public UnityEvent OnTrackingLost;
     public UnityEvent OnTrackingRestored;
     public UnityEvent OnTrackingReset;
+    
+    [Header("UI Update Events")]
     public UnityEvent<string> OnStatusUpdate;
     public UnityEvent<float> OnDistanceUpdate;
     public UnityEvent<bool> OnTrackingButtonStateChange;
@@ -389,7 +397,6 @@ public class ConfigurableImageTracker : MonoBehaviour
                     OnTrackingRestored?.Invoke();
                 }
             }
-            
         }
         else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
         {
