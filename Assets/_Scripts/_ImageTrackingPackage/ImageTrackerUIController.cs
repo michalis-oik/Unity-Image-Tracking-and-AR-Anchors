@@ -9,8 +9,6 @@ public class ImageTrackerUIController : MonoBehaviour
     [SerializeField] private Button trackButton;
     [SerializeField] private Button resetButton;
     [SerializeField] private TextMeshProUGUI statusText;
-    [SerializeField] private TextMeshProUGUI distanceText;
-    [SerializeField] private GameObject distancePanel;
 
     [Header("Tracker Reference")]
     [SerializeField] private ConfigurableImageTracker imageTracker;
@@ -28,8 +26,6 @@ public class ImageTrackerUIController : MonoBehaviour
             resetButton.gameObject.SetActive(false);
         }
 
-        if (distancePanel != null) distancePanel.SetActive(false);
-
         if (planeManager == null && autoManagePlanes)
         {
             planeManager = FindFirstObjectByType<ARPlaneManager>();
@@ -38,12 +34,9 @@ public class ImageTrackerUIController : MonoBehaviour
         if (imageTracker != null)
         {
             imageTracker.OnStatusUpdate.AddListener(UpdateStatusText);
-            imageTracker.OnDistanceUpdate.AddListener(UpdateDistanceText);
             imageTracker.OnTrackingButtonStateChange.AddListener(SetTrackButtonState);
             imageTracker.OnResetButtonStateChange.AddListener(SetResetButtonState);
             imageTracker.OnTrackingStateChanged.AddListener(OnTrackingStateChanged);
-
-            // --- MODIFIED: Subscribe to the new unified event ---
             imageTracker.OnImageTracked.AddListener(OnImageTracked);
         }
     }
@@ -65,14 +58,11 @@ public class ImageTrackerUIController : MonoBehaviour
             ShowPlanes();
         }
     }
-
-    // --- NEW: Listener for the TrackedImageResultEvent ---
+    
     private void OnImageTracked(TrackedImageResult result)
     {
-        // This single function now handles both anchor and transform based results.
         Debug.Log($"UI Controller received tracked image: {result.ImageName}, IsAnchor: {result.IsRootAnchor}");
         
-        // Example: Hide planes once any image is successfully tracked.
         if (autoManagePlanes && planeManager != null)
         {
             HidePlanes();
@@ -87,17 +77,6 @@ public class ImageTrackerUIController : MonoBehaviour
         }
     }
 
-    private void UpdateDistanceText(float distance)
-    {
-        if (distanceText != null && distancePanel != null)
-        {
-            if (!distancePanel.activeSelf)
-            {
-                distancePanel.SetActive(true);
-            }
-            distanceText.text = $"Distance: {distance:F2} m";
-        }
-    }
 
     private void SetTrackButtonState(bool interactable)
     {
@@ -117,15 +96,9 @@ public class ImageTrackerUIController : MonoBehaviour
 
     private void OnTrackingStateChanged(ConfigurableImageTracker.TrackingState state)
     {
-        switch (state)
-        {
-            case ConfigurableImageTracker.TrackingState.Lost:
-                if (distancePanel != null)
-                {
-                    distancePanel.SetActive(false);
-                }
-                break;
-        }
+        // UI logic for different states can be added here if needed.
+        // For example, changing the color of the status text.
+        // The logic for hiding the distance panel on 'Lost' state is no longer needed.
     }
 
     #region Plane Management
@@ -154,11 +127,9 @@ public class ImageTrackerUIController : MonoBehaviour
         if (imageTracker != null)
         {
             imageTracker.OnStatusUpdate.RemoveListener(UpdateStatusText);
-            imageTracker.OnDistanceUpdate.RemoveListener(UpdateDistanceText);
             imageTracker.OnTrackingButtonStateChange.RemoveListener(SetTrackButtonState);
             imageTracker.OnResetButtonStateChange.RemoveListener(SetResetButtonState);
             imageTracker.OnTrackingStateChanged.RemoveListener(OnTrackingStateChanged);
-            // --- MODIFIED: Unsubscribe from the new event ---
             imageTracker.OnImageTracked.RemoveListener(OnImageTracked);
         }
 

@@ -38,7 +38,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     [SerializeField] private TrackingMode trackingMode = TrackingMode.AnchorBased;
     [SerializeField] private LibrarySource librarySource = LibrarySource.DynamicCreation;
 
-    // --- MODIFIED: Replaced single image URL with a collection ---
     [Header("Image Target Setup (Dynamic Creation)")]
     [SerializeField] private URLTrackedImageCollection urlImageCollection;
 
@@ -50,6 +49,7 @@ public class ConfigurableImageTracker : MonoBehaviour
     private bool libraryInitialized = false;
     private TrackingState currentState = TrackingState.NotInitialized;
 
+    // Dictionaries to handle multiple images and objects
     private Dictionary<string, Texture2D> downloadedTextures = new Dictionary<string, Texture2D>();
     private Dictionary<string, GameObject> trackedGameObjects = new Dictionary<string, GameObject>();
 
@@ -69,10 +69,8 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     [Header("UI Update Events")]
     public UnityEvent<string> OnStatusUpdate;
-    public UnityEvent<float> OnDistanceUpdate;
     public UnityEvent<bool> OnTrackingButtonStateChange;
     public UnityEvent<bool> OnResetButtonStateChange;
-
 
     void Start()
     {
@@ -114,11 +112,9 @@ public class ConfigurableImageTracker : MonoBehaviour
     public void ResetExperience()
     {
         UpdateStatus("Resetting experience...");
-
-        // Destroy all spawned game objects
+        
         foreach (var trackedObject in trackedGameObjects.Values)
         {
-            // Anchors are components on GameObjects, so destroying the GameObject is correct.
             Destroy(trackedObject);
         }
         trackedGameObjects.Clear();
@@ -141,8 +137,7 @@ public class ConfigurableImageTracker : MonoBehaviour
     public void SetImageCollection(URLTrackedImageCollection collection)
     {
         urlImageCollection = collection;
-        // Reset state if a new collection is provided mid-session
-        if(currentState != TrackingState.NotInitialized)
+        if (currentState != TrackingState.NotInitialized)
         {
             ResetExperience();
             downloadedTextures.Clear();
@@ -176,7 +171,7 @@ public class ConfigurableImageTracker : MonoBehaviour
             if (request.result == UnityWebRequest.Result.Success)
             {
                 Texture2D texture = DownloadHandlerTexture.GetContent(request);
-                texture.name = imageToTrack.name; // Crucial for matching later
+                texture.name = imageToTrack.name;
                 downloadedTextures[imageToTrack.name] = texture;
                 downloadedCount++;
             }
@@ -265,8 +260,7 @@ public class ConfigurableImageTracker : MonoBehaviour
             UpdateStatus("Error: No downloaded textures to create a library from.");
             return;
         }
-
-        // Add all downloaded images to the runtime library
+        
         foreach (var imageToTrack in urlImageCollection.uRLTrackedImages)
         {
             if (downloadedTextures.ContainsKey(imageToTrack.name))
@@ -292,35 +286,19 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         foreach (ARTrackedImage trackedImage in eventArgs.added)
         {
-            UpdateDistance(trackedImage);
             ProcessTrackedImage(trackedImage);
         }
 
         foreach (ARTrackedImage trackedImage in eventArgs.updated)
         {
-            UpdateDistance(trackedImage);
             ProcessTrackedImage(trackedImage);
-        }
-
-        // You could handle 'removed' if you want to, e.g., hide the object.
-        // For now, we'll let the object persist even when tracking is lost.
-    }
-
-    private void UpdateDistance(ARTrackedImage trackedImage)
-    {
-        if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking ||
-            trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Limited)
-        {
-            float distance = Vector3.Distance(Camera.main.transform.position, trackedImage.transform.position);
-            OnDistanceUpdate?.Invoke(distance);
         }
     }
 
     private async void ProcessTrackedImage(ARTrackedImage trackedImage)
     {
         string imageName = trackedImage.referenceImage.name;
-
-        // If the image is being tracked and we haven't created an object for it yet
+        
         if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && !trackedGameObjects.ContainsKey(imageName))
         {
             SetTrackingState(TrackingState.Tracking);
@@ -343,7 +321,7 @@ public class ConfigurableImageTracker : MonoBehaviour
                 else
                 {
                     UpdateStatus($"Failed to create anchor for '{imageName}'");
-                    return; // Abort if anchor creation fails
+                    return;
                 }
             }
             else // TransformBased
@@ -353,10 +331,9 @@ public class ConfigurableImageTracker : MonoBehaviour
                 isAnchor = false;
                 UpdateStatus($"Transform root created for '{imageName}'");
             }
-
-            // Store the created object
+            
             trackedGameObjects[imageName] = rootObject;
-
+            
             TrackedImageResult resultPayload = new TrackedImageResult
             {
                 ImageName = imageName,
@@ -367,7 +344,6 @@ public class ConfigurableImageTracker : MonoBehaviour
 
             OnResetButtonStateChange?.Invoke(true);
         }
-        // If we are already tracking this image, just update its position (for TransformBased mode)
         else if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking && trackedGameObjects.ContainsKey(imageName))
         {
             if (trackingMode == TrackingMode.TransformBased)
@@ -379,9 +355,8 @@ public class ConfigurableImageTracker : MonoBehaviour
         {
             SetTrackingState(TrackingState.Limited);
         }
-        else // None or Lost
+        else
         {
-            // We can invoke OnTrackingLost here if we want to react to a specific image being lost
             OnTrackingLost?.Invoke();
         }
     }
@@ -401,8 +376,7 @@ public class ConfigurableImageTracker : MonoBehaviour
             OnTrackingStateChanged?.Invoke(newState);
         }
     }
-
-    // --- NEW: Public method to get a specific tracked object ---
+    
     public Transform GetTrackedObjectTransform(string imageName)
     {
         if (trackedGameObjects.TryGetValue(imageName, out GameObject obj))

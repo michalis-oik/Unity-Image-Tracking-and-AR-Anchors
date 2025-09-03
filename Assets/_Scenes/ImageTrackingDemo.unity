@@ -1166,7 +1166,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1327760067
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1482,9 +1482,6 @@ MonoBehaviour:
   OnStatusUpdate:
     m_PersistentCalls:
       m_Calls: []
-  OnDistanceUpdate:
-    m_PersistentCalls:
-      m_Calls: []
   OnTrackingButtonStateChange:
     m_PersistentCalls:
       m_Calls: []
@@ -1506,8 +1503,6 @@ MonoBehaviour:
   trackButton: {fileID: 1992825857}
   resetButton: {fileID: 1858539585}
   statusText: {fileID: 780871662}
-  distanceText: {fileID: 1327760068}
-  distancePanel: {fileID: 1327760066}
   imageTracker: {fileID: 1663067451}
   planeManager: {fileID: 1993576209}
   autoManagePlanes: 1
