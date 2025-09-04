@@ -68,7 +68,7 @@ public class ImageTrackerUIController : MonoBehaviour
     private void OnImageTracked(TrackedImageResult result)
     {
         Debug.Log($"UI Controller received tracked image: {result.ImageName}, IsAnchor: {result.IsRootAnchor}");
-
+        UpdateStatus($"Tracked image: {result.ImageName}");
         if (autoManagePlanes && planeManager != null)
         {
             HidePlanes();
@@ -96,7 +96,7 @@ public class ImageTrackerUIController : MonoBehaviour
                 SetResetButtonState(false);
                 break;
             case ConfigurableImageTracker.TrackingState.Tracking:
-                UpdateStatus("Tracking image!");
+                //UpdateStatus("Tracking image!");
                 SetTrackButtonState(false);
                 SetResetButtonState(true);
                 break;

@@ -1298,7 +1298,6 @@ GameObject:
   - component: {fileID: 1663067442}
   - component: {fileID: 1663067441}
   - component: {fileID: 1663067449}
-  - component: {fileID: 1663067450}
   - component: {fileID: 1663067452}
   - component: {fileID: 1663067451}
   m_Layer: 5
@@ -1405,7 +1404,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trackedImageManager: {fileID: 1993576213}
   anchorManager: {fileID: 1993576214}
-  planeVisualizerController: {fileID: 1663067450}
+  planeVisualizerController: {fileID: 0}
   arSession: {fileID: 310565683}
   imageUrl: https://i.imgur.com/wpJuarJ.png
   physicalImageSize: 0.21
@@ -1422,19 +1421,6 @@ MonoBehaviour:
   resetButton: {fileID: 1858539585}
   statusText: {fileID: 780871662}
   distanceText: {fileID: 1327760068}
---- !u!114 &1663067450
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663067439}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e44aba092e793240881fe8820a00683, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  planeManager: {fileID: 1993576209}
 --- !u!114 &1663067451
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1480,15 +1466,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   OnTrackingReset:
-    m_PersistentCalls:
-      m_Calls: []
-  OnStatusUpdate:
-    m_PersistentCalls:
-      m_Calls: []
-  OnTrackingButtonStateChange:
-    m_PersistentCalls:
-      m_Calls: []
-  OnResetButtonStateChange:
     m_PersistentCalls:
       m_Calls: []
 --- !u!114 &1663067452
