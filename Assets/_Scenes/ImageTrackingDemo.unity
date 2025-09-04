@@ -1450,7 +1450,7 @@ MonoBehaviour:
   trackedImageManager: {fileID: 1993576213}
   anchorManager: {fileID: 1993576214}
   trackingMode: 0
-  librarySource: 1
+  librarySource: 0
   urlImageCollection:
     uRLTrackedImages:
     - name: AgrowellLogo

@@ -67,11 +67,6 @@ public class ConfigurableImageTracker : MonoBehaviour
     public UnityEvent OnTrackingLost;
     public UnityEvent OnTrackingReset;
 
-    [Header("UI Update Events")]
-    public UnityEvent<string> OnStatusUpdate;
-    public UnityEvent<bool> OnTrackingButtonStateChange;
-    public UnityEvent<bool> OnResetButtonStateChange;
-
     void Start()
     {
         SetTrackingState(TrackingState.NotInitialized);
@@ -126,9 +121,6 @@ public class ConfigurableImageTracker : MonoBehaviour
             trackedImageManager.enabled = false;
         }
 
-        OnResetButtonStateChange?.Invoke(false);
-        OnTrackingButtonStateChange?.Invoke(true);
-
         OnTrackingReset?.Invoke();
         SetTrackingState(TrackingState.NotInitialized);
         UpdateStatus("Press 'Track Image' to begin");
@@ -149,13 +141,11 @@ public class ConfigurableImageTracker : MonoBehaviour
     private IEnumerator DownloadAndSetupImages()
     {
         SetTrackingState(TrackingState.Downloading);
-        OnTrackingButtonStateChange?.Invoke(false);
 
         if (urlImageCollection == null || urlImageCollection.uRLTrackedImages.Count == 0)
         {
             UpdateStatus("Error: No images in the collection to download.");
             SetTrackingState(TrackingState.NotInitialized);
-            OnTrackingButtonStateChange?.Invoke(true);
             yield break;
         }
 
@@ -191,7 +181,6 @@ public class ConfigurableImageTracker : MonoBehaviour
         {
             UpdateStatus("Error: Failed to download any images.");
             SetTrackingState(TrackingState.NotInitialized);
-            OnTrackingButtonStateChange?.Invoke(true);
         }
     }
 
@@ -216,14 +205,13 @@ public class ConfigurableImageTracker : MonoBehaviour
 
         if (!libraryInitialized)
         {
-            OnTrackingButtonStateChange?.Invoke(true);
+            SetTrackingState(TrackingState.NotInitialized);
             return;
         }
 
         trackedImageManager.enabled = true;
 
         UpdateStatus("Ready! Please scan for images.");
-        OnTrackingButtonStateChange?.Invoke(true);
 
         SetTrackingState(TrackingState.ReadyToScan);
         OnTrackingInitialized?.Invoke();
@@ -366,7 +354,7 @@ public class ConfigurableImageTracker : MonoBehaviour
                 };
                 OnImageTracked?.Invoke(resultPayload);
 
-                OnResetButtonStateChange?.Invoke(true);
+                //OnResetButtonStateChange?.Invoke(true);
             }
             else
             {
@@ -390,7 +378,7 @@ public class ConfigurableImageTracker : MonoBehaviour
 
     private void UpdateStatus(string message)
     {
-        OnStatusUpdate?.Invoke(message);
+        //OnStatusUpdate?.Invoke(message);
         Debug.Log($"[Status]: {message}");
     }
 

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.XR.ARFoundation;
+using System;
 
 public class ImageTrackerUIController : MonoBehaviour
 {
@@ -33,12 +34,17 @@ public class ImageTrackerUIController : MonoBehaviour
 
         if (imageTracker != null)
         {
-            imageTracker.OnStatusUpdate.AddListener(UpdateStatusText);
-            imageTracker.OnTrackingButtonStateChange.AddListener(SetTrackButtonState);
-            imageTracker.OnResetButtonStateChange.AddListener(SetResetButtonState);
+            // Listen to all relevant events
             imageTracker.OnTrackingStateChanged.AddListener(OnTrackingStateChanged);
             imageTracker.OnImageTracked.AddListener(OnImageTracked);
+            imageTracker.OnTrackingReset.AddListener(OnTrackingReset);
+            imageTracker.OnTrackingInitialized.AddListener(OnTrackingInitialized);
+            imageTracker.OnAllImagesDownloaded.AddListener(OnAllImagesDownloaded);
+            imageTracker.OnReadyToScan.AddListener(OnReadyToScan);
+            imageTracker.OnTrackingLost.AddListener(OnTrackingLost);
         }
+
+        UpdateStatus("Press 'Track Image' to begin");
     }
 
     private void OnTrackButtonClicked()
@@ -58,25 +64,94 @@ public class ImageTrackerUIController : MonoBehaviour
             ShowPlanes();
         }
     }
-    
+
     private void OnImageTracked(TrackedImageResult result)
     {
         Debug.Log($"UI Controller received tracked image: {result.ImageName}, IsAnchor: {result.IsRootAnchor}");
-        
+
         if (autoManagePlanes && planeManager != null)
         {
             HidePlanes();
         }
     }
 
-    private void UpdateStatusText(string message)
+    // Event handlers for status updates
+    private void OnTrackingStateChanged(ConfigurableImageTracker.TrackingState state)
+    {
+        switch (state)
+        {
+            case ConfigurableImageTracker.TrackingState.NotInitialized:
+                UpdateStatus("Press 'Track Image' to begin");
+                SetTrackButtonState(true);
+                SetResetButtonState(false);
+                break;
+            case ConfigurableImageTracker.TrackingState.Downloading:
+                UpdateStatus("Downloading images...");
+                SetTrackButtonState(false);
+                SetResetButtonState(false);
+                break;
+            case ConfigurableImageTracker.TrackingState.ReadyToScan:
+                UpdateStatus("Ready! Please scan for images.");
+                SetTrackButtonState(true);
+                SetResetButtonState(false);
+                break;
+            case ConfigurableImageTracker.TrackingState.Tracking:
+                UpdateStatus("Tracking image!");
+                SetTrackButtonState(false);
+                SetResetButtonState(true);
+                break;
+            case ConfigurableImageTracker.TrackingState.Limited:
+                //UpdateStatus("Tracking limited");
+                SetTrackButtonState(false);
+                SetResetButtonState(true);
+                break;
+            case ConfigurableImageTracker.TrackingState.Lost:
+                UpdateStatus("Tracking lost");
+                SetTrackButtonState(false);
+                SetResetButtonState(true);
+                break;
+        }
+    }
+
+    private void OnTrackingReset()
+    {
+        UpdateStatus("Experience reset");
+        SetTrackButtonState(true);
+        SetResetButtonState(false);
+    }
+
+    private void OnTrackingInitialized()
+    {
+        UpdateStatus("Tracking initialized");
+        SetTrackButtonState(true);
+        SetResetButtonState(false);
+    }
+
+    private void OnAllImagesDownloaded()
+    {
+        UpdateStatus("All images downloaded. Setting up tracking...");
+    }
+
+    private void OnReadyToScan()
+    {
+        UpdateStatus("Ready! Please scan for images.");
+    }
+
+    private void OnTrackingLost()
+    {
+        UpdateStatus("Tracking lost");
+        SetTrackButtonState(false);
+        SetResetButtonState(true);
+    }
+
+    private void UpdateStatus(string message)
     {
         if (statusText != null)
         {
             statusText.text = message;
         }
+        Debug.Log($"[UI Status]: {message}");
     }
-
 
     private void SetTrackButtonState(bool interactable)
     {
@@ -92,13 +167,6 @@ public class ImageTrackerUIController : MonoBehaviour
         {
             resetButton.gameObject.SetActive(visible);
         }
-    }
-
-    private void OnTrackingStateChanged(ConfigurableImageTracker.TrackingState state)
-    {
-        // UI logic for different states can be added here if needed.
-        // For example, changing the color of the status text.
-        // The logic for hiding the distance panel on 'Lost' state is no longer needed.
     }
 
     #region Plane Management
@@ -126,11 +194,13 @@ public class ImageTrackerUIController : MonoBehaviour
     {
         if (imageTracker != null)
         {
-            imageTracker.OnStatusUpdate.RemoveListener(UpdateStatusText);
-            imageTracker.OnTrackingButtonStateChange.RemoveListener(SetTrackButtonState);
-            imageTracker.OnResetButtonStateChange.RemoveListener(SetResetButtonState);
             imageTracker.OnTrackingStateChanged.RemoveListener(OnTrackingStateChanged);
             imageTracker.OnImageTracked.RemoveListener(OnImageTracked);
+            imageTracker.OnTrackingReset.RemoveListener(OnTrackingReset);
+            imageTracker.OnTrackingInitialized.RemoveListener(OnTrackingInitialized);
+            imageTracker.OnAllImagesDownloaded.RemoveListener(OnAllImagesDownloaded);
+            imageTracker.OnReadyToScan.RemoveListener(OnReadyToScan);
+            imageTracker.OnTrackingLost.RemoveListener(OnTrackingLost);
         }
 
         if (trackButton != null) trackButton.onClick.RemoveAllListeners();
